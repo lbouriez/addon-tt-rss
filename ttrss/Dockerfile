@@ -1,60 +1,60 @@
 ARG BUILD_FROM=ghcr.io/linuxserver/baseimage-alpine-nginx:3.12
-FROM ${BUILD_FROM} as lunik1_build
+FROM ${BUILD_FROM} as app
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# From lunik1/docker-tt-rss
-# set version label
-ARG VERSION
-ARG TT_RSS_VERSION
-LABEL build_version="master ${BUILD_DATE}"
+ENV SCRIPT_ROOT=/opt/tt-rss
 
 RUN \
     apk add --no-cache \
-        curl=7.64.0-r5 \
-        php7-apcu=5.1.16-r0 \
-        php7-curl=7.2.33-r0 \
-        php7-dom=7.2.33-r0 \
-        php7-gd=7.2.33-r0 \
-        php7-iconv=7.2.33-r0 \
-        php7-intl=7.2.33-r0 \
-        php7-ldap=7.2.33-r0 \
-        php7-mcrypt=1.0.1-r1 \
-        php7-mysqli=7.2.33-r0 \
-        php7-mysqlnd=7.2.33-r0 \
-        php7-pcntl=7.2.33-r0 \
-        php7-pdo_mysql=7.2.33-r0 \
-        php7-pdo_pgsql=7.2.33-r0 \
-        php7-pgsql=7.2.33-r0 \
-        php7-posix=7.2.33-r0 \
-        tar=1.32-r0 \
-    \
-    && mkdir -p /var/www/html/ \
-    \
-    && if [ -z ${TT_RSS_VERSION+x} ]; then TT_RSS_VERSION=master; fi \
-    \
-    && curl -o \
-        /tmp/ttrss.tar.gz -L \
-        "https://gitlab.com/lunik1/tt-rss/-/archive/master/tt-rss-${TT_RSS_VERSION}.tar.gz" \
-    \
-    && tar xf \
-        /tmp/ttrss.tar.gz -C \
-	    /var/www/html/ --strip-components=1 \
-    \
-    && ln -sf /usr/bin/php7 /usr/bin/php \
-    \
-    && rm -rf /tmp/* \
-    \
-    && sed -i 's/^;clear_env/clear_env/i' /etc/php7/php-fpm.d/www.conf
+        php7=7.3.27-r0 \
+        php7-fpm=7.3.27-r0 \
+        php7-pdo=7.3.27-r0 \
+        php7-gd=7.3.27-r0 \
+        php7-pgsql=7.3.27-r0 \
+        php7-pdo_pgsql=7.3.27-r0 \
+        php7-mbstring=7.3.27-r0 \
+        php7-intl=7.3.27-r0 \
+        php7-xml=7.3.27-r0 \
+        php7-curl=7.3.27-r0 \
+        php7-session=7.3.27-r0 \
+        php7-tokenizer=7.3.27-r0 \
+        php7-dom=7.3.27-r0 \
+        php7-fileinfo=7.3.27-r0 \
+        php7-json=7.3.27-r0 \
+        php7-iconv=7.3.27-r0 \
+        php7-pcntl=7.3.27-r0 \
+        php7-posix=7.3.27-r0 \
+        php7-zip=7.3.27-r0 \
+        php7-exif=7.3.27-r0 \
+        php7-openssl=7.3.27-r0 \
+        git=2.26.3-r0 \
+        postgresql-client=12.6-r0 \
+        sudo=1.9.5p2-r0 \
+        php7-pecl-xdebug=2.9.8-r0 \
+        rsync=3.1.3-r3 \
+    && sed -i 's/\(memory_limit =\) 128M/\1 256M/' /etc/php7/php.ini \
+    && sed -i -e 's/^listen = 127.0.0.1:9000/listen = 9000/' \
+        -e 's/;\(clear_env\) = .*/\1 = no/i' \
+        -e 's/^\(user\|group\) = .*/\1 = app/i' \
+        -e 's/;\(php_admin_value\[error_log\]\) = .*/\1 = \/tmp\/error.log/' \
+        -e 's/;\(php_admin_flag\[log_errors\]\) = .*/\1 = on/' \
+        /etc/php7/php-fpm.d/www.conf \
+        &&  sed -i 's/^;clear_env/clear_env/i' /etc/php7/php-fpm.d/www.conf
 
 # Copy root filesystem
 COPY rootfs /
+ 
+ENV OWNER_UID=1000
+ENV OWNER_GID=1000
+ENV TTRSS_MYSQL_CHARSET="UTF8"
+ENV TTRSS_PHP_EXECUTABLE="/usr/bin/php8"
+ENV TTRSS_PLUGINS="auth_internal, note, nginx_xaccel"
 
-EXPOSE 80 443
-VOLUME /config
+# CMD ${SCRIPT_ROOT}/startup.sh
 
-FROM lunik1_build
+FROM app
 
 # Build arguments
 ARG BUILD_ARCH
